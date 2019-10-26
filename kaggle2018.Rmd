@@ -1,0 +1,107 @@
+---
+title: "Kaggle2018"
+author: "Kuldeep Singh Chouhan"
+date: "26/10/2019"
+output: 
+  html_document:
+    number_section: false
+    fig_caption: true
+    toc: yes
+    theme: cosmo
+    highlight: tango
+    code_folding: hide
+---
+
+```{r setup, include=FALSE, echo=FALSE}
+knitr::opts_chunk$set(echo = TRUE, error = FALSE)
+```
+
+
+# **Introduction**
+
+This is Kaggle's *2018 Kaggle Machine Learning and Data Science Survey*. KAggle conducted an industry-wide survey that presents a truly comprehensive view of the state of data science and machine learning. In this kernel I will perform extensive EDA to get interesting stories from the data.
+
+# **Loading data and libraries** {.tabset .tabset-fade .tabset-pills}
+
+We will start our EDA by checking the dimensions of our dataset. The data contains following:
+
+## Loading libraries
+
+```{r message=FALSE}
+#loading libraries
+
+library(tidyverse)
+library(ggthemes)
+library(data.table)
+```
+
+## Data
+
+```{r}
+multi <- fread("data/multipleChoiceResponses.csv", skip = 1)
+
+free <- fread("data/freeFormResponses.csv", skip = 1)
+```
+
+# **Demmographics**
+
+Let's examine demographic data. We will first look at gender.
+
+## Gender
+
+We will see the gender distribution of respondents.
+
+```{r}
+
+vars <- c(gender = "What is your gender? - Selected Choice",
+          gen_txt = "What is your gender? - Prefer to self-describe - Text",
+          country = "In which country do you currently reside?",
+          age = "What is your age (# years)?")
+
+multi <- multi %>%
+  rename(!!vars)
+
+```
+
+```{r}
+gen <- multi %>%
+  group_by(gender)%>%
+  count()
+
+gen %>%
+  ggplot(aes(gender, n, fill = gender)) +
+  geom_col() +
+  geom_label(aes(label = n)) +
+  labs(x = "Gender", y = "Respondents") +
+  coord_flip() +
+  theme_gdocs() +
+  theme(legend.position = "none") +
+  ggtitle("Gender Counts")
+
+```
+
+## Age
+
+Now we will see the age distribution of respondents.
+
+```{r}
+multi <- multi %>%
+  mutate(age = fct_relevel(age, c("18-21", "22-24","25-29","30-34","35-39","40-44","45-49","50-54","55-59","60-69","70-79","80+")))  
+
+ag <- multi %>%
+  group_by(age) %>%
+  count() 
+
+ag %>%
+  ggplot(aes(fct_reorder(age, n), n, fill = age)) +
+  geom_col() +
+  geom_label(aes(label = n)) +
+  labs(x = "Age Group", y = "Respondents Counts") +
+  coord_flip() +
+  theme_gdocs() +
+  theme(legend.position = "none") +
+  ggtitle("Age Groups")
+
+```
+
+
