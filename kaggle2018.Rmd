@@ -19,7 +19,7 @@ knitr::opts_chunk$set(echo = TRUE, error = FALSE)
 
 # **Introduction**
 
-This is Kaggle's *2018 Kaggle Machine Learning and Data Science Survey*. KAggle conducted an industry-wide survey that presents a truly comprehensive view of the state of data science and machine learning. In this kernel I will perform extensive EDA to get interesting stories from the data.
+This is Kaggle's seconnd annual machine learning and data science survey. In [*2018 Kaggle Machine Learning and Data Science Survey*](https://www.kaggle.com/kaggle/kaggle-survey-2018/home) Kaggle conducted an industry-wide survey that presents a truly comprehensive view of the state of data science and machine learning. In this kernel I am going to do extensive EDA. There are around **23,859** respondents.
 
 # **Loading data and libraries** {.tabset .tabset-fade .tabset-pills}
 
@@ -33,75 +33,146 @@ We will start our EDA by checking the dimensions of our dataset. The data contai
 library(tidyverse)
 library(ggthemes)
 library(data.table)
+library(grid)
+library(gridExtra)
+library(knitr)
+library(kableExtra)
+
 ```
 
-## Data
+## Load data
 
 ```{r}
-multi <- fread("data/multipleChoiceResponses.csv", skip = 1)
+multiple <- fread("data/multipleChoiceResponses.csv", skip = 1, encoding = "UTF-8") %>% mutate_if(is_character, as_factor)
 
-free <- fread("data/freeFormResponses.csv", skip = 1)
+freeform <- fread("data/freeFormResponses.csv", skip = 1)
 ```
 
-# **Demmographics**
+The dataset **multiple** consists of 395 columns. The column name are questions asked dusring the survey so we are going to edit the column names as we will explore our data during the EDA. 
 
-Let's examine demographic data. We will first look at gender.
+```{r}
+multiple[1:5,] %>%
+  kable(format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed")) %>%
+        column_spec(column = c(1,4), width = "10em; min-width: 5em;") %>%
+        column_spec(column = 5:395, width = "25em; min-width: 25em;") %>%
+        row_spec(1:5, align = "c") %>%
+        scroll_box(width = "100%")
 
-## Gender
 
-We will see the gender distribution of respondents.
+```
+
+Since the dataset is huge. I have used [**kableExtra Package**](https://cran.r-project.org/web/packages/kableExtra/vignettes/awesome_table_in_html.html) to generate the table in the browser.
 
 ```{r}
 
 vars <- c(gender = "What is your gender? - Selected Choice",
-          gen_txt = "What is your gender? - Prefer to self-describe - Text",
           country = "In which country do you currently reside?",
-          age = "What is your age (# years)?")
+          age = "What is your age (# years)?",
+          education = "What is the highest level of formal education that you have attained or plan to attain within the next 2 years?",
+          major = "Which best describes your undergraduate major? - Selected Choice",
+          role = "Select the title most similar to your current role (or most recent title if retired): - Selected Choice",
+          industry = "In what industry is your current employer/contract (or your most recent employer if retired)? - Selected Choice")
 
-multi <- multi %>%
+multiple <- multiple %>%
   rename(!!vars)
 
 ```
 
-```{r}
-gen <- multi %>%
-  group_by(gender)%>%
-  count()
+# **Demographics**
+
+Let's examine demographic data. We will first look at gender.
+
+## Gender Distribution
+
+We will see the gender distribution of respondents.
+
+```{r fig.height=5, fig.cap="Fig. 1"}
+
+gen <- multiple %>%
+  count(gender) %>%
+  mutate(gender = fct_reorder(gender,n))
 
 gen %>%
+  mutate(percentage = str_c(as.character(round(n/sum(gen$n)*100,1)), "%")) %>%
   ggplot(aes(gender, n, fill = gender)) +
   geom_col() +
-  geom_label(aes(label = n)) +
-  labs(x = "Gender", y = "Respondents") +
-  coord_flip() +
-  theme_gdocs() +
+  geom_label(aes(label = percentage), position = position_dodge(width = 1)) +
+  labs(x = "Gender", y = "Number of Respondents") +
+  theme_hc() +
   theme(legend.position = "none") +
-  ggtitle("Gender Counts")
+  ggtitle("Gender Distribution") +
+  coord_flip()
 
 ```
 
-## Age
+**There are 81% male respondents and 17% female respondents.** 
 
-Now we will see the age distribution of respondents.
+## Age Distribution
 
-```{r}
-multi <- multi %>%
-  mutate(age = fct_relevel(age, c("18-21", "22-24","25-29","30-34","35-39","40-44","45-49","50-54","55-59","60-69","70-79","80+")))  
+Age distribution of Kagglers. 
 
-ag <- multi %>%
-  group_by(age) %>%
-  count() 
+```{r fig.height=5, fig.cap="Fig. 2"}
 
-ag %>%
-  ggplot(aes(fct_reorder(age, n), n, fill = age)) +
+multiple <- multiple %>%
+  mutate(age = fct_relevel(age, var <- c("18-21", "22-24","25-29","30-34","35-39","40-44","45-49","50-54","55-59","60-69","70-79","80+")))
+
+multiple %>%
+  count(age) %>%
+  mutate(percentage = str_c(as.character(round(n/sum(n)*100,1)), "%")) %>%
+  ggplot(aes(age, n, fill = age)) +
   geom_col() +
-  geom_label(aes(label = n)) +
-  labs(x = "Age Group", y = "Respondents Counts") +
-  coord_flip() +
-  theme_gdocs() +
-  theme(legend.position = "none") +
-  ggtitle("Age Groups")
+  geom_label(aes(label = percentage)) +
+  labs(x = "Age", y = "Number of respondents") +
+  theme_hc() +
+  theme(legend.position = "none", axis.text.x  = element_text(angle=90, hjust=1, vjust=0.9)) +
+  ggtitle("Age Distribution")
 
 ```
 
+Age distribution is right-skewed, with **the most common value being age 25-29 with 26% followed by 22-24 and 18-21 with 21% & 3% respectively.** Most of the respondents are from younger age group. I am amazed to see respondents at ages of 50+ and 60+. 
 
+## Country  
+
+```{r fig.height=9, fig.cap="Fig. 3"}
+
+multiple %>%
+  count(country) %>%
+  mutate(country = reorder(country, n, FUN = min), n) %>%
+  ggplot(aes(country, n)) +
+  geom_col(fill = "yellowgreen") +
+  labs(x = "", y = "Number of respondents") + theme_hc() +
+  theme(legend.position = "none") +
+  ggtitle("Country of respondents") +
+  coord_flip()
+
+```
+
+The **maximum number of respondents are from US & India** forming around **49%** of the total respondents followed by **China** with *7%** respondents. 
+
+# **Education**
+
+Q.What is the highest level of formal education that you have attained or plan to attain within the next 2 years?
+
+```{r fig.height=5, fig.cap="Fig. 4"}
+
+multiple %>%
+  mutate(education = fct_relabel(education, str_replace, c("Some college/university study without earning a bachelor’s degree"), "Some college/Uni study")) %>%
+  mutate(education = fct_relabel(education, str_replace, "No formal education past high school", "High School")) %>%
+  mutate(education = fct_relabel(education, str_replace, "I prefer not to answer", "No answer")) %>%
+  mutate(education = na_if(education, "")) %>%
+  filter(!is.na(education))%>%
+  count(education) %>%
+  mutate(education = reorder(education, n, FUN = min), n) %>%
+  mutate(percentage = str_c(as.character(round(n/sum(n)*100,1)), "%")) %>%
+  ggplot(aes(education, n, fill = education)) +
+  geom_col() +
+  labs(x = "Education", y = "Number of respondents") + theme_hc() +
+  geom_label(aes(label = percentage)) +
+  theme(legend.position = "none") +
+  ggtitle("Education of respondents") +
+  coord_flip()
+
+```
+
+**The highest level of education are Master's & Bachelor's degrees with 46% & 30% respectively.** The third major category is **Doctoral degree** with **14%** respondents.
